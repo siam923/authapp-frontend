@@ -1,0 +1,40 @@
+## To implement interceptor 
+
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://your-api-base-url',
+});
+
+api.interceptors.request.use(
+  async (config) => {
+    // Get the expiration time of the access token
+    const accessTokenExpiresAt = localStorage.getItem('accessTokenExpiresAt');
+
+    // Check if the access token is about to expire
+    if (accessTokenExpiresAt && Date.now() > Number(accessTokenExpiresAt)) {
+      // Get the refresh token from storage
+      const refreshToken = localStorage.getItem('refreshToken');
+
+      if (refreshToken) {
+        // Send a request to the refresh token endpoint to get a new access token
+        const response = await api.post('/refresh-token', { refreshToken });
+        const data = response.data;
+
+        // Update the access token and its expiration time in storage
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('accessTokenExpiresAt', data.accessTokenExpiresAt);
+
+        // Update the Authorization header with the new access token
+        config.headers['Authorization'] = `Bearer ${data.accessToken}`;
+      }
+    }
+
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+export default api;
